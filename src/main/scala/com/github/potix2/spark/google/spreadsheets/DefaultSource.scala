@@ -18,6 +18,9 @@ import org.apache.spark.sql.sources.{BaseRelation, CreatableRelationProvider, Re
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{DataFrame, SQLContext, SaveMode}
 
+import scala.None
+import scala.util.Try
+
 class DefaultSource extends RelationProvider with SchemaRelationProvider with CreatableRelationProvider {
 
   override def createRelation(sqlContext: SQLContext, parameters: Map[String, String]) = {
@@ -33,7 +36,7 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
     (elems(0), elems(1))
   }
 
-  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String], schema: StructType) = {
+  override def createRelation(sqlContext: SQLContext, parameters: Map[String, String], schema: StructType) : BaseRelation = {
     val (spreadsheetName, worksheetName) = pathToSheetNames(parameters)
     val context = createSpreadsheetContext(parameters)
     createRelation(sqlContext, context, spreadsheetName, worksheetName, schema)
@@ -51,15 +54,39 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
 
     }
 
-    spreadsheet.get.addWorksheet(worksheetName, data.schema, data.collect().toList, Util.toRowData)
+    def write(): Unit = spreadsheet.get.addWorksheet(worksheetName, data.schema, data.collect().toList, Util.toRowData, parameters)
+
+    spreadsheet.get.findWorksheet(worksheetName) match {
+      case Some(worksheet) =>
+        mode match {
+          case SaveMode.Overwrite => {
+            val isUpsert: Boolean = Try(parameters("operation").toBoolean).getOrElse(false)
+            if(isUpsert) {
+              val worksheetRelation = SpreadsheetRelation(context, spreadsheetName, worksheetName, Some(data.schema))(sqlContext)
+              worksheet.upsert(data.schema, worksheetRelation.buildScan().collect().toList, data.collect().toList, Util.toRowData)
+            }
+            else {
+              spreadsheet.get.deleteWorksheet(worksheetName)
+              write()
+            }
+          }
+          case SaveMode.Append => {
+            val worksheetRelation = SpreadsheetRelation(context, spreadsheetName, worksheetName, Some(data.schema))(sqlContext)
+            worksheet.updateCells(data.schema, worksheetRelation.buildScan().collect().toList ++ data.collect().toList, Util.toRowData)
+          }
+          case SaveMode.Ignore => Unit
+          case SaveMode.ErrorIfExists => throw new IllegalAccessException(s"Worksheet with name: $worksheetName already exists.")
+        }
+    }
     createRelation(sqlContext, context, spreadsheetName, worksheetName, data.schema)
   }
 
 
   private[spreadsheets] def createSpreadsheetContext(parameters: Map[String, String]) = {
     val client_json:String = parameters.getOrElse("client_json", sys.error("'credentialString' must be specified for the google API account."))
+    val operation:Boolean = Try(parameters("operation").toBoolean).getOrElse(sys.error("'upsert' must be boolean."))
 
-    SparkSpreadsheetService(client_json)
+    SparkSpreadsheetService(client_json, operation)
   }
 
   private[spreadsheets] def createRelation(sqlContext: SQLContext,
