@@ -16,6 +16,7 @@ package com.github.potix2.spark.google.spreadsheets
 import com.github.potix2.spark.google.spreadsheets.SparkSpreadsheetService.SparkSpreadsheetContext
 import com.github.potix2.spark.google.spreadsheets.util._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation, TableScan}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SQLContext}
@@ -31,16 +32,18 @@ case class SpreadsheetRelation protected[spark] (
 
   override def schema: StructType = userSchema.getOrElse(inferSchema())
 
-  private lazy val rows: Seq[Map[String, String]] =
+  private lazy val aWorksheet: SparkWorksheet =
     findWorksheet(spreadsheetName, worksheetName)(context) match {
-      case Right(aWorksheet) => aWorksheet.rows
+      case Right(aWorksheet) => aWorksheet
       case Left(e) => throw e
     }
 
+  private lazy val rows: Seq[Map[String, String]] = aWorksheet.rows
+
   private[spreadsheets] def findWorksheet(spreadsheetName: String, worksheetName: String)(implicit ctx: SparkSpreadsheetContext): Either[Throwable, SparkWorksheet] =
     for {
-      sheet <- findSpreadsheet(spreadsheetName).toRight(new RuntimeException(s"no such a worksheet: $worksheetName")).right
-      worksheet <- sheet.findWorksheet(worksheetName).toRight(new RuntimeException(s"no such a spreadsheet: $spreadsheetName")).right
+      sheet <- findSpreadsheet(spreadsheetName).toRight(new RuntimeException(s"no such spreadsheet: $spreadsheetName")).right
+      worksheet <- sheet.findWorksheet(worksheetName).toRight(new RuntimeException(s"no such worksheet: $worksheetName")).right
     } yield worksheet
 
   override def buildScan(): RDD[Row] = {
@@ -51,10 +54,14 @@ case class SpreadsheetRelation protected[spark] (
         val rowArray = new Array[Any](aSchema.fields.length)
         while(index < aSchema.fields.length) {
           val field = aSchema.fields(index)
-          rowArray(index) = TypeCast.castTo(m(field.name), field.dataType, field.nullable)
+          rowArray(index) = if (m.contains(field.name)) {
+            TypeCast.castTo(m(field.name), field.dataType, field.nullable)
+          } else {
+            null
+          }
           index += 1
         }
-        Row.fromSeq(rowArray)
+        new GenericRowWithSchema(rowArray, aSchema)
       }
     }
   }
@@ -73,7 +80,7 @@ case class SpreadsheetRelation protected[spark] (
   }
 
   private def inferSchema(): StructType =
-    StructType(rows(0).keys.toList.map { fieldName =>
+    StructType(aWorksheet.headers.toList.map { fieldName =>
       StructField(fieldName, StringType, nullable = true)
     })
 
