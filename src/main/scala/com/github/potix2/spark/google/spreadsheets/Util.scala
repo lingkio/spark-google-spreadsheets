@@ -17,15 +17,15 @@ object Util {
         new CellData()
           .setUserEnteredValue(
             f.dataType match {
-              case DataTypes.StringType => new ExtendedValue().setStringValue(row.getString(i))
-              case DataTypes.LongType => new ExtendedValue().setNumberValue(row.getLong(i).toDouble)
-              case DataTypes.IntegerType => new ExtendedValue().setNumberValue(row.getInt(i).toDouble)
-              case DataTypes.FloatType => new ExtendedValue().setNumberValue(row.getFloat(i).toDouble)
-              case DataTypes.BooleanType => new ExtendedValue().setBoolValue(row.getBoolean(i))
-              case DataTypes.DateType => new ExtendedValue().setStringValue(row.getDate(i).toString)
-              case DataTypes.ShortType => new ExtendedValue().setNumberValue(row.getShort(i).toDouble)
-              case DataTypes.TimestampType => new ExtendedValue().setStringValue(row.getTimestamp(i).toString)
-              case DataTypes.DoubleType => new ExtendedValue().setNumberValue(row.getDouble(i))
+              case DataTypes.StringType => new ExtendedValue().setStringValue(if(row.isNullAt(i)) null else row.getString(i))
+              case DataTypes.LongType => new ExtendedValue().setNumberValue(if(row.isNullAt(i)) null else row.getLong(i).toDouble)
+              case DataTypes.IntegerType => new ExtendedValue().setNumberValue(if(row.isNullAt(i)) null else row.getInt(i).toDouble)
+              case DataTypes.FloatType => new ExtendedValue().setNumberValue(if(row.isNullAt(i)) null else row.getFloat(i).toDouble)
+              case DataTypes.BooleanType => new ExtendedValue().setBoolValue(if(row.isNullAt(i)) null else row.getBoolean(i))
+              case DataTypes.DateType => new ExtendedValue().setStringValue(if(row.isNullAt(i)) null else row.getDate(i).toString)
+              case DataTypes.ShortType => new ExtendedValue().setNumberValue(if(row.isNullAt(i)) null else row.getShort(i).toDouble)
+              case DataTypes.TimestampType => new ExtendedValue().setStringValue(if(row.isNullAt(i)) null else row.getTimestamp(i).toString)
+              case DataTypes.DoubleType => new ExtendedValue().setNumberValue(if(row.isNullAt(i)) null else row.getDouble(i))
             }
           )
       }.toList.asJava
