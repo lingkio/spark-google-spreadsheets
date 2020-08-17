@@ -21,14 +21,12 @@ import org.scalatest.{BeforeAndAfter, FlatSpec}
 import scala.collection.JavaConverters._
 
 class SparkSpreadsheetServiceWriteSuite extends FlatSpec with BeforeAndAfter {
-  private val serviceAccountId = "53797494708-ds5v22b6cbpchrv2qih1vg8kru098k9i@developer.gserviceaccount.com"
-  private val testCredentialPath = "src/test/resources/spark-google-spreadsheets-test-eb7b191d1e1d.p12"
-  private val TEST_SPREADSHEET_NAME = "WriteSuite"
-  private val TEST_SPREADSHEET_ID = "163Ja2OWUephWjIa-jpwTlvGcg8EJwCFCfxrF7aI117s"
+  private val TEST_SPREADSHEET_NAME = "TestSpreadsheet"
+  private val TEST_SPREADSHEET_ID = ""
+  private val CREDENTIALS_JSON = ""
 
   private val context: SparkSpreadsheetService.SparkSpreadsheetContext =
-    SparkSpreadsheetService.SparkSpreadsheetContext(Some(serviceAccountId), new java.io.File(testCredentialPath))
-
+    SparkSpreadsheetService.SparkSpreadsheetContext(CREDENTIALS_JSON)
   var spreadsheet: SparkSpreadsheet = null
   var worksheetName: String = ""
 

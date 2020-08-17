@@ -18,13 +18,12 @@ import java.io.File
 import org.scalatest.{BeforeAndAfter, FlatSpec}
 
 class SparkSpreadsheetServiceReadSuite extends FlatSpec with BeforeAndAfter {
-  private val serviceAccountId = "53797494708-ds5v22b6cbpchrv2qih1vg8kru098k9i@developer.gserviceaccount.com"
-  private val testCredentialPath = "src/test/resources/spark-google-spreadsheets-test-eb7b191d1e1d.p12"
-  private val TEST_SPREADSHEET_NAME = "SpreadsheetSuite"
-  private val TEST_SPREADSHEET_ID = "1H40ZeqXrMRxgHIi3XxmHwsPs2SgVuLUFbtaGcqCAk6c"
+  private val TEST_SPREADSHEET_NAME = "TestSpreadsheet"
+  private val TEST_SPREADSHEET_ID = ""
+  private val CREDENTIALS_JSON = ""
 
   private val context: SparkSpreadsheetService.SparkSpreadsheetContext =
-    SparkSpreadsheetService.SparkSpreadsheetContext(Some(serviceAccountId), new File(testCredentialPath))
+    SparkSpreadsheetService.SparkSpreadsheetContext(CREDENTIALS_JSON)
   private val spreadsheet: SparkSpreadsheetService.SparkSpreadsheet =
     context.findSpreadsheet(TEST_SPREADSHEET_ID)
 
@@ -37,7 +36,7 @@ class SparkSpreadsheetServiceReadSuite extends FlatSpec with BeforeAndAfter {
 
   behavior of "A worksheet"
   it should "be None when a worksheet is missing" in {
-    assert(spreadsheet.findWorksheet("foo").isEmpty)
+    assert(spreadsheet.findWorksheet("lolo").isEmpty)
   }
 
   it should "be retrieved when the worksheet exists" in {

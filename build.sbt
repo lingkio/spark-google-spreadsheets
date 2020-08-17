@@ -2,7 +2,7 @@ name := "spark-google-spreadsheets"
 
 organization := "io.lingk"
 
-version := "1.0.3"
+version := "1.0.5"
 
 scalaVersion := "2.11.7"
 

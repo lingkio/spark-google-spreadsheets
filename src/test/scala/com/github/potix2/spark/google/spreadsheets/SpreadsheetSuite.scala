@@ -24,9 +24,8 @@ import org.scalatest.{BeforeAndAfter, FlatSpec}
 import scala.util.Random
 
 class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
-  private val serviceAccountId = "53797494708-ds5v22b6cbpchrv2qih1vg8kru098k9i@developer.gserviceaccount.com"
-  private val testCredentialPath = "src/test/resources/spark-google-spreadsheets-test-eb7b191d1e1d.p12"
-  private val TEST_SPREADSHEET_ID = "1H40ZeqXrMRxgHIi3XxmHwsPs2SgVuLUFbtaGcqCAk6c"
+  private val TEST_SPREADSHEET_ID = ""
+  private val CREDENTIALS_JSON = ""
 
   private var sqlContext: SQLContext = _
   before {
@@ -45,7 +44,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   def withNewEmptyWorksheet(testCode:(String) => Any): Unit = {
-    implicit val spreadSheetContext = SparkSpreadsheetService(Some(serviceAccountId), new File(testCredentialPath))
+    implicit val spreadSheetContext = SparkSpreadsheetService(CREDENTIALS_JSON)
     val spreadsheet = SparkSpreadsheetService.findSpreadsheet(TEST_SPREADSHEET_ID)
     spreadsheet.foreach { s =>
       val workSheetName = Random.alphanumeric.take(16).mkString
@@ -60,7 +59,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   def withEmptyWorksheet(testCode:(String) => Any): Unit = {
-    implicit val spreadSheetContext = SparkSpreadsheetService(Some(serviceAccountId), new File(testCredentialPath))
+    implicit val spreadSheetContext = SparkSpreadsheetService(CREDENTIALS_JSON)
     val workSheetName = Random.alphanumeric.take(16).mkString
     try {
       testCode(workSheetName)
@@ -74,8 +73,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
 
   it should "behave as a DataFrame" in {
     val results = sqlContext.read
-      .option("serviceAccountId", serviceAccountId)
-      .option("credentialPath", testCredentialPath)
+      .option("client_json", CREDENTIALS_JSON)
       .spreadsheet(s"$TEST_SPREADSHEET_ID/case1")
       .select("col1")
       .collect()
@@ -91,8 +89,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     ))
 
     val results = sqlContext.read
-      .option("serviceAccountId", serviceAccountId)
-      .option("credentialPath", testCredentialPath)
+      .option("client_json", CREDENTIALS_JSON)
       .schema(schema)
       .spreadsheet(s"$TEST_SPREADSHEET_ID/case1")
       .select("col1", "col2", "col3")
@@ -111,7 +108,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   trait PersonDataFrame extends PersonData {
-    val personsRows = Seq(Row(1, "Kathleen", "Cole"), Row(2, "Julia", "Richards"), Row(3, "Terry", "Black"))
+    val personsRows = Seq(Row(1, "Kathleen", "Cole"), Row(2, "Julia", "Richards"), Row(3, "Terry", ""))
     val nextPersonsRows = Seq(Row(1, "John", "Snow"), Row(2, "Knows", "Nothing"))
     val personsRDD = sqlContext.sparkContext.parallelize(personsRows)
     val nextPersonsRDD = sqlContext.sparkContext.parallelize(nextPersonsRows)
@@ -143,13 +140,11 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     import com.github.potix2.spark.google.spreadsheets._
     withEmptyWorksheet { workSheetName =>
       personsDF.write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
@@ -162,8 +157,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
 
   it should "infer it's schema from headers" in {
     val results = sqlContext.read
-      .option("serviceAccountId", serviceAccountId)
-      .option("credentialPath", testCredentialPath)
+      .option("client_json", CREDENTIALS_JSON)
       .spreadsheet(s"$TEST_SPREADSHEET_ID/case3")
 
     assert(results.columns.size === 2)
@@ -175,14 +169,12 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     import com.github.potix2.spark.google.spreadsheets._
     withEmptyWorksheet { workSheetName =>
       personsDF.write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
         .schema(personsSchema)
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
@@ -205,7 +197,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
            |CREATE TEMPORARY TABLE people
            |(id int, firstname string, lastname string)
            |USING com.github.potix2.spark.google.spreadsheets
-           |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", serviceAccountId "$serviceAccountId", credentialPath "$testCredentialPath")
+           |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", client_json "$CREDENTIALS_JSON")
        """.stripMargin.replaceAll("\n", " "))
 
       assert(sqlContext.sql("SELECT * FROM people").collect().size == 0)
@@ -217,7 +209,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
       s"""
          |CREATE TEMPORARY TABLE SpreadsheetSuite
          |USING com.github.potix2.spark.google.spreadsheets
-         |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", serviceAccountId "$serviceAccountId", credentialPath "$testCredentialPath")
+         |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", client_json "$CREDENTIALS_JSON")
        """.stripMargin.replaceAll("\n", " "))
 
     assert(sqlContext.sql("SELECT id, firstname, lastname FROM SpreadsheetSuite").collect().size == 10)
@@ -227,20 +219,17 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     withEmptyWorksheet { workSheetName =>
       personsDF
         .write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       nextPersonsDF
         .write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .mode(SaveMode.Overwrite)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
@@ -255,20 +244,17 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     withEmptyWorksheet { workSheetName =>
       personsDF
         .write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       nextPersonsDF
         .write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .mode(SaveMode.Append)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
@@ -287,14 +273,14 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
            |CREATE TEMPORARY TABLE accesslog
            |(id string, firstname string, lastname string, email string, country string, ipaddress string)
            |USING com.github.potix2.spark.google.spreadsheets
-           |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", serviceAccountId "$serviceAccountId", credentialPath "$testCredentialPath")
+           |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", client_json "$CREDENTIALS_JSON")
        """.stripMargin.replaceAll("\n", " "))
 
       sqlContext.sql(
         s"""
            |CREATE TEMPORARY TABLE SpreadsheetSuite
            |USING com.github.potix2.spark.google.spreadsheets
-           |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", serviceAccountId "$serviceAccountId", credentialPath "$testCredentialPath")
+           |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", client_json "$CREDENTIALS_JSON")
        """.stripMargin.replaceAll("\n", " "))
 
       sqlContext.sql("INSERT OVERWRITE TABLE accesslog SELECT * FROM SpreadsheetSuite")
@@ -314,13 +300,11 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     import com.github.potix2.spark.google.spreadsheets._
     withEmptyWorksheet { workSheetName =>
       aDF.write
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
-        .option("serviceAccountId", serviceAccountId)
-        .option("credentialPath", testCredentialPath)
+        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
