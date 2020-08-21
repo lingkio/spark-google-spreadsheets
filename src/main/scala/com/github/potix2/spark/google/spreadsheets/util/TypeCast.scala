@@ -20,7 +20,7 @@ object TypeCast {
       case _: ByteType => datum.toByte
       case _: ShortType => datum.toShort
       case _: IntegerType => datum.toInt
-      case _: LongType => datum.toLong
+      case _: LongType => Try(datum.toLong).getOrElse(null)
       case _: FloatType => Try(datum.toFloat)
         .getOrElse(NumberFormat.getInstance(Locale.getDefault()).parse(datum).floatValue())
       case _: DoubleType => Try(datum.toFloat)
@@ -31,7 +31,6 @@ object TypeCast {
       case _: DateType => Date.valueOf(datum)
       case _: StringType => datum
       case _ => throw new RuntimeException(s"Unsupported type: ${castType.typeName}")
-
     }
   }
 }
