@@ -126,12 +126,15 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   trait PersonDataFrame extends PersonData {
-    val personsRows = Seq(Row(1, "Kathleen", "Cole"), Row(2, "Julia", "Richards"), Row(3, "Terry", ""))
+    val personsRows = Seq(Row(1, "Kathleen", "Cole"), Row(2, "Julia", "Richards"), Row(3, "Terry", "Richards"))
     val nextPersonsRows = Seq(Row(1, "John", "Snow"), Row(2, "Knows", "Nothing"))
+    val secondPersonsRows = Seq(Row(1, "Kathleen", "Cole", ""), Row("", "Julia", "Richards", 41), Row("", "Terry", "Richards", 56))
     val personsRDD = sqlContext.sparkContext.parallelize(personsRows)
     val nextPersonsRDD = sqlContext.sparkContext.parallelize(nextPersonsRows)
+    val secondPersonsRDD = sqlContext.sparkContext.parallelize(secondPersonsRows)
     val personsDF = sqlContext.createDataFrame(personsRDD, personsSchema)
     val nextPersonsDF = sqlContext.createDataFrame(nextPersonsRDD, personsSchema)
+    val secondPersonsDF = sqlContext.createDataFrame(secondPersonsRDD, secondPersonsSchema)
   }
 
   trait SparsePersonDataFrame extends PersonData {
