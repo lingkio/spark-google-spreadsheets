@@ -55,7 +55,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
       .foreach(_.deleteWorksheet(worksheetName))
   }
 
-  def withNewEmptyWorksheet(testCode:(String) => Any): Unit = {
+  def withNewEmptyWorksheet(testCode: (String) => Any): Unit = {
     implicit val spreadSheetContext = SparkSpreadsheetService(CREDENTIALS_JSON)
     val spreadsheet = SparkSpreadsheetService.findSpreadsheet(TEST_SPREADSHEET_ID)
     spreadsheet.foreach { s =>
@@ -70,7 +70,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
     }
   }
 
-  def withEmptyWorksheet(testCode:(String) => Any): Unit = {
+  def withEmptyWorksheet(testCode: (String) => Any): Unit = {
     implicit val spreadSheetContext = SparkSpreadsheetService(CREDENTIALS_JSON)
     val workSheetName = Random.alphanumeric.take(16).mkString
     try {
@@ -128,16 +128,10 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   trait PersonDataFrame extends PersonData {
     val personsRows = Seq(Row(1, "Kathleen", "Cole"), Row(2, "Julia", "Richards"), Row(3, "Terry", ""))
     val nextPersonsRows = Seq(Row(1, "John", "Snow"), Row(2, "Knows", "Nothing"))
-    val secondPersonsRows = Seq(Row(1, "John", "Thomas", 1L), Row(2, "John", "Thomas", 32L), Row(3, "Anne", "Jacobs", 32L), Row(4, "Anne", "Jacobs", 2L))
     val personsRDD = sqlContext.sparkContext.parallelize(personsRows)
     val nextPersonsRDD = sqlContext.sparkContext.parallelize(nextPersonsRows)
     val personsDF = sqlContext.createDataFrame(personsRDD, personsSchema)
     val nextPersonsDF = sqlContext.createDataFrame(nextPersonsRDD, personsSchema)
-    val secondPersonsRDD = sqlContext.sparkContext.parallelize(secondPersonsRows)
-    val secondPersonsDF = sqlContext.createDataFrame(secondPersonsRDD, secondPersonsSchema)
-    secondPersonsDF.printSchema()
-    secondPersonsDF.show(1)
-
   }
 
   trait SparsePersonDataFrame extends PersonData {
@@ -161,7 +155,9 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   behavior of "A DataFrame"
 
   it should "be saved as a sheet" in new PersonDataFrame {
+
     import com.github.potix2.spark.google.spreadsheets._
+
     withEmptyWorksheet { workSheetName =>
       personsDF.write
         .option("client_json", CREDENTIALS_JSON)
@@ -190,7 +186,9 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   "A sparse DataFrame" should "be saved as a sheet, preserving empty cells" in new SparsePersonDataFrame {
+
     import com.github.potix2.spark.google.spreadsheets._
+
     withEmptyWorksheet { workSheetName =>
       personsDF.write
         .option("client_json", CREDENTIALS_JSON)
@@ -265,67 +263,16 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
   }
 
   it should "be appended as a sheet" in new PersonDataFrame {
-    /*withEmptyWorksheet { workSheetName =>*/
-      /*personsDF
+    withEmptyWorksheet { workSheetName =>
+      personsDF
         .write
         .option("client_json", CREDENTIALS_JSON)
-        .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")*/
-    secondPersonsDF.show(5)
+        .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
-    /*secondPersonsDF
+      personsDF
         .write
         .option("client_json", CREDENTIALS_JSON)
         .mode(SaveMode.Append)
-        .spreadsheet(s"$TEST_SPREADSHEET_ID/Sheet6")
-
-      val result = sqlContext.read
-        .option("client_json", CREDENTIALS_JSON)
-        .spreadsheet(s"$TEST_SPREADSHEET_ID/Sheet6")
-        .collect()*/
-
-
-      /*assert(result.size == 5)
-      assert(result(4).getString(0) == "2")
-      assert(result(4).getString(1) == "Knows")
-      assert(result(4).getString(2) == "Nothing")*/
-    //}
-  }
-
-  it should "be inserted from sql" in {
-    withNewEmptyWorksheet { worksheetName =>
-      sqlContext.sql(
-        s"""
-           |CREATE TEMPORARY TABLE accesslog
-           |(id string, firstname string, lastname string, email string, country string, ipaddress string)
-           |USING com.github.potix2.spark.google.spreadsheets
-           |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", client_json "$CREDENTIALS_JSON")
-       """.stripMargin.replaceAll("\n", " "))
-
-      sqlContext.sql(
-        s"""
-           |CREATE TEMPORARY TABLE SpreadsheetSuite
-           |USING com.github.potix2.spark.google.spreadsheets
-           |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", client_json "$CREDENTIALS_JSON")
-       """.stripMargin.replaceAll("\n", " "))
-
-      sqlContext.sql("INSERT OVERWRITE TABLE accesslog SELECT * FROM SpreadsheetSuite")
-      assert(sqlContext.sql("SELECT id, firstname, lastname FROM accesslog").collect().size == 10)
-    }
-  }
-
-  trait UnderscoreDataFrame {
-    val aSchema = StructType(List(
-      StructField("foo_bar", IntegerType, true)))
-    val aRows = Seq(Row(1), Row(2), Row(3))
-    val aRDD = sqlContext.sparkContext.parallelize(aRows)
-    val aDF = sqlContext.createDataFrame(aRDD, aSchema)
-  }
-
-  "The underscore" should "be used in a column name" in new UnderscoreDataFrame {
-    import com.github.potix2.spark.google.spreadsheets._
-    withEmptyWorksheet { workSheetName =>
-      aDF.write
-        .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
 
       val result = sqlContext.read
@@ -333,8 +280,60 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
         .collect()
 
-      assert(result.size == 3)
-      assert(result(0).getString(0) == "1")
+
+      assert(result.size == 5)
+      assert(result(4).getString(0) == "2")
+      assert(result(4).getString(1) == "Knows")
+      assert(result(4).getString(2) == "Nothing")
+    }
+
+    it should "be inserted from sql" in {
+      withNewEmptyWorksheet { worksheetName =>
+        sqlContext.sql(
+          s"""
+             |CREATE TEMPORARY TABLE accesslog
+             |(id string, firstname string, lastname string, email string, country string, ipaddress string)
+             |USING com.github.potix2.spark.google.spreadsheets
+             |OPTIONS (path "$TEST_SPREADSHEET_ID/$worksheetName", client_json "$CREDENTIALS_JSON")
+       """.stripMargin.replaceAll("\n", " "))
+
+        sqlContext.sql(
+          s"""
+             |CREATE TEMPORARY TABLE SpreadsheetSuite
+             |USING com.github.potix2.spark.google.spreadsheets
+             |OPTIONS (path "$TEST_SPREADSHEET_ID/case2", client_json "$CREDENTIALS_JSON")
+       """.stripMargin.replaceAll("\n", " "))
+
+        sqlContext.sql("INSERT OVERWRITE TABLE accesslog SELECT * FROM SpreadsheetSuite")
+        assert(sqlContext.sql("SELECT id, firstname, lastname FROM accesslog").collect().size == 10)
+      }
+    }
+
+    trait UnderscoreDataFrame {
+      val aSchema = StructType(List(
+        StructField("foo_bar", IntegerType, true)))
+      val aRows = Seq(Row(1), Row(2), Row(3))
+      val aRDD = sqlContext.sparkContext.parallelize(aRows)
+      val aDF = sqlContext.createDataFrame(aRDD, aSchema)
+    }
+
+    "The underscore" should "be used in a column name" in new UnderscoreDataFrame {
+
+      import com.github.potix2.spark.google.spreadsheets._
+
+      withEmptyWorksheet { workSheetName =>
+        aDF.write
+          .option("client_json", CREDENTIALS_JSON)
+          .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
+
+        val result = sqlContext.read
+          .option("client_json", CREDENTIALS_JSON)
+          .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")
+          .collect()
+
+        assert(result.size == 3)
+        assert(result(0).getString(0) == "1")
+      }
     }
   }
 }
