@@ -270,8 +270,9 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
         .write
         .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/$workSheetName")*/
+    secondPersonsDF.show(5)
 
-    secondPersonsDF
+    /*secondPersonsDF
         .write
         .option("client_json", CREDENTIALS_JSON)
         .mode(SaveMode.Append)
@@ -280,7 +281,7 @@ class SpreadsheetSuite extends FlatSpec with BeforeAndAfter {
       val result = sqlContext.read
         .option("client_json", CREDENTIALS_JSON)
         .spreadsheet(s"$TEST_SPREADSHEET_ID/Sheet6")
-        .collect()
+        .collect()*/
 
 
       /*assert(result.size == 5)
