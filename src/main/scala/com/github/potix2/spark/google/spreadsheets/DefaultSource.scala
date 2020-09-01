@@ -60,7 +60,7 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
           }
           case SaveMode.Append => {
             val worksheetRelation = SpreadsheetRelation(context, spreadsheetName, worksheetName, Some(data.schema))(sqlContext)
-            worksheet.updateCells(data.schema, worksheetRelation.buildScan().collect().toList ++ data.collect().toList, Util.toRowData)
+            worksheet.appendCells(data.schema, data.collect().toList, Util.toRowData)
           }
           case SaveMode.Ignore => Unit
           case SaveMode.ErrorIfExists => throw new IllegalAccessException(s"Worksheet with name: $worksheetName already exists.")

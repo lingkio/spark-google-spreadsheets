@@ -29,15 +29,16 @@ import org.apache.spark.sql.types.StructType
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 
-
 object SparkSpreadsheetService {
-  private val SPREADSHEET_URL = new URL("https://spreadsheets.google.com/feeds/spreadsheets/private/full")
+  private val SPREADSHEET_URL = new URL(
+    "https://spreadsheets.google.com/feeds/spreadsheets/private/full")
   private val scopes = List(SheetsScopes.SPREADSHEETS)
   private val APP_NAME = "spark-google-spreadsheets-1.0.0"
-  private val HTTP_TRANSPORT: NetHttpTransport = GoogleNetHttpTransport.newTrustedTransport()
+  private val HTTP_TRANSPORT: NetHttpTransport =
+    GoogleNetHttpTransport.newTrustedTransport()
   private val JSON_FACTORY: JacksonFactory = JacksonFactory.getDefaultInstance()
 
-    /*case class SparkSpreadsheetContext(serviceAccountIdOption: Option[String], p12File: File) {
+  /*case class SparkSpreadsheetContext(serviceAccountIdOption: Option[String], p12File: File) {
       private val credential = authorize(serviceAccountIdOption, p12File)
       lazy val service =
         new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
@@ -78,22 +79,27 @@ object SparkSpreadsheetService {
     private def authorize(credential_json: String): GoogleCredential = {
 
       // Reading credential json string
-      val in :InputStream = new ByteArrayInputStream(credential_json.getBytes(StandardCharsets.UTF_8))
-      val credential = GoogleCredential.fromStream(in, HTTP_TRANSPORT,JSON_FACTORY).createScoped(scopes)
+      val in: InputStream = new ByteArrayInputStream(
+        credential_json.getBytes(StandardCharsets.UTF_8))
+      val credential = GoogleCredential
+        .fromStream(in, HTTP_TRANSPORT, JSON_FACTORY)
+        .createScoped(scopes)
 
       credential.refreshToken()
       credential
     }
 
     def findSpreadsheet(spreadSheetId: String): SparkSpreadsheet = {
-      SparkSpreadsheet(this, service.spreadsheets().get(spreadSheetId).execute())
+      SparkSpreadsheet(this,
+                       service.spreadsheets().get(spreadSheetId).execute())
     }
 
     def query(spreadsheetId: String, range: String): ValueRange =
       service.spreadsheets().values().get(spreadsheetId, range).execute()
   }
 
-  case class SparkSpreadsheet(context:SparkSpreadsheetContext, private var spreadsheet: Spreadsheet) {
+  case class SparkSpreadsheet(context: SparkSpreadsheetContext,
+                              private var spreadsheet: Spreadsheet) {
     def name: String = spreadsheet.getProperties.getTitle
     def getWorksheets: Seq[SparkWorksheet] =
       spreadsheet.getSheets.map(new SparkWorksheet(context, spreadsheet, _))
@@ -101,29 +107,39 @@ object SparkSpreadsheetService {
     def nextSheetId: Integer =
       getWorksheets.map(_.sheet.getProperties.getSheetId).max + 1
 
-    def addWorksheet(sheetName: String, colNum: Integer, rowNum: Integer): Unit = {
+    def addWorksheet(sheetName: String,
+                     colNum: Integer,
+                     rowNum: Integer): Unit = {
       val addSheetRequest = new AddSheetRequest()
       addSheetRequest.setProperties(
         new SheetProperties()
           .setSheetId(nextSheetId)
           .setTitle(sheetName)
-          .setGridProperties(
-            new GridProperties()
-              .setColumnCount(colNum)
-              .setRowCount(rowNum)))
+          .setGridProperties(new GridProperties()
+            .setColumnCount(colNum)
+            .setRowCount(rowNum)))
 
       val requests = List(
         new Request().setAddSheet(addSheetRequest)
       )
 
-      context.service.spreadsheets().batchUpdate(spreadsheet.getSpreadsheetId,
-        new BatchUpdateSpreadsheetRequest()
-          .setRequests(requests)).execute()
+      context.service
+        .spreadsheets()
+        .batchUpdate(spreadsheet.getSpreadsheetId,
+                     new BatchUpdateSpreadsheetRequest()
+                       .setRequests(requests))
+        .execute()
 
-      spreadsheet = context.service.spreadsheets().get(spreadsheet.getSpreadsheetId).execute()
+      spreadsheet = context.service
+        .spreadsheets()
+        .get(spreadsheet.getSpreadsheetId)
+        .execute()
     }
 
-    def addWorksheet[T](sheetName: String, schema: StructType, data: List[T], extractor: T => RowData): Unit = {
+    def addWorksheet[T](sheetName: String,
+                        schema: StructType,
+                        data: List[T],
+                        extractor: T => RowData): Unit = {
       val colNum = schema.fields.size
       val rowNum = data.size + 1
       val nextId = nextSheetId
@@ -133,30 +149,32 @@ object SparkSpreadsheetService {
         new SheetProperties()
           .setSheetId(nextId)
           .setTitle(sheetName)
-          .setGridProperties(
-            new GridProperties()
-              .setColumnCount(colNum)
-              .setRowCount(rowNum)))
+          .setGridProperties(new GridProperties()
+            .setColumnCount(colNum)
+            .setRowCount(rowNum)))
 
       val headerValues: List[CellData] = schema.fields.map { field =>
         new CellData()
-          .setUserEnteredValue(new ExtendedValue()
-            .setStringValue(field.name))
+          .setUserEnteredValue(
+            new ExtendedValue()
+              .setStringValue(field.name))
       }.toList
 
       val updateHeaderRequest = new UpdateCellsRequest()
-        .setStart(new GridCoordinate()
-          .setSheetId(nextId)
-          .setRowIndex(0)
-          .setColumnIndex(0))
+        .setStart(
+          new GridCoordinate()
+            .setSheetId(nextId)
+            .setRowIndex(0)
+            .setColumnIndex(0))
         .setRows(List(new RowData().setValues(headerValues)))
         .setFields("userEnteredValue")
 
       val updateRowsRequest = new UpdateCellsRequest()
-        .setStart(new GridCoordinate()
-          .setSheetId(nextId)
-          .setRowIndex(1)
-          .setColumnIndex(0))
+        .setStart(
+          new GridCoordinate()
+            .setSheetId(nextId)
+            .setRowIndex(1)
+            .setColumnIndex(0))
         .setRows(data.map(extractor))
         .setFields("userEnteredValue")
 
@@ -166,11 +184,17 @@ object SparkSpreadsheetService {
         new Request().setUpdateCells(updateRowsRequest)
       )
 
-      context.service.spreadsheets().batchUpdate(spreadsheet.getSpreadsheetId,
-        new BatchUpdateSpreadsheetRequest()
-          .setRequests(requests)).execute()
+      context.service
+        .spreadsheets()
+        .batchUpdate(spreadsheet.getSpreadsheetId,
+                     new BatchUpdateSpreadsheetRequest()
+                       .setRequests(requests))
+        .execute()
 
-      spreadsheet = context.service.spreadsheets().get(spreadsheet.getSpreadsheetId).execute()
+      spreadsheet = context.service
+        .spreadsheets()
+        .get(spreadsheet.getSpreadsheetId)
+        .execute()
     }
 
     def findWorksheet(worksheetName: String): Option[SparkWorksheet] = {
@@ -180,67 +204,86 @@ object SparkSpreadsheetService {
 
     def deleteWorksheet(worksheetName: String): Unit = {
       val worksheet: Option[SparkWorksheet] = findWorksheet(worksheetName)
-      if(worksheet.isDefined) {
+      if (worksheet.isDefined) {
         val request = new Request()
         val sheetId = worksheet.get.sheet.getProperties.getSheetId
-        request.setDeleteSheet(new DeleteSheetRequest()
-          .setSheetId(sheetId))
+        request.setDeleteSheet(
+          new DeleteSheetRequest()
+            .setSheetId(sheetId))
 
-        context.service.spreadsheets().batchUpdate(spreadsheet.getSpreadsheetId,
-          new BatchUpdateSpreadsheetRequest().setRequests(List(request).asJava)).execute()
+        context.service
+          .spreadsheets()
+          .batchUpdate(spreadsheet.getSpreadsheetId,
+                       new BatchUpdateSpreadsheetRequest()
+                         .setRequests(List(request).asJava))
+          .execute()
 
-        spreadsheet = context.service.spreadsheets().get(spreadsheet.getSpreadsheetId).execute()
+        spreadsheet = context.service
+          .spreadsheets()
+          .get(spreadsheet.getSpreadsheetId)
+          .execute()
       }
     }
   }
 
-  case class SparkWorksheet(context: SparkSpreadsheetContext, spreadsheet: Spreadsheet, sheet: Sheet) {
+  case class SparkWorksheet(context: SparkSpreadsheetContext,
+                            spreadsheet: Spreadsheet,
+                            sheet: Sheet) {
     def name: String = sheet.getProperties.getTitle
     lazy val values = {
       val valueRange = context.query(spreadsheet.getSpreadsheetId, name)
-      if ( valueRange.getValues != null )
+      if (valueRange.getValues != null)
         valueRange.getValues
       else
         List[java.util.List[Object]]().asJava
     }
 
     lazy val headers =
-      values.headOption.map { row => row.map(_.toString) }.getOrElse(List())
+      values.headOption
+        .map { row =>
+          row.map(_.toString)
+        }
+        .getOrElse(List())
 
-    def updateCells[T](schema: StructType, data: List[T], extractor: T => RowData): Unit = {
+    def updateCells[T](schema: StructType,
+                       data: List[T],
+                       extractor: T => RowData): Unit = {
       val colNum = schema.fields.size
       val rowNum = data.size + 2
       val sheetId = sheet.getProperties.getSheetId
 
       val updatePropertiesRequest = new UpdateSheetPropertiesRequest()
-      updatePropertiesRequest.setProperties(
-        new SheetProperties()
-          .setSheetId(sheetId)
-          .setGridProperties(
-            new GridProperties()
+      updatePropertiesRequest
+        .setProperties(
+          new SheetProperties()
+            .setSheetId(sheetId)
+            .setGridProperties(new GridProperties()
               .setColumnCount(colNum)
               .setRowCount(rowNum)))
         .setFields("gridProperties(rowCount,columnCount)")
 
       val headerValues: List[CellData] = schema.fields.map { field =>
         new CellData()
-          .setUserEnteredValue(new ExtendedValue()
-            .setStringValue(field.name))
+          .setUserEnteredValue(
+            new ExtendedValue()
+              .setStringValue(field.name))
       }.toList
 
       val updateHeaderRequest = new UpdateCellsRequest()
-        .setStart(new GridCoordinate()
-          .setSheetId(sheetId)
-          .setRowIndex(0)
-          .setColumnIndex(0))
+        .setStart(
+          new GridCoordinate()
+            .setSheetId(sheetId)
+            .setRowIndex(0)
+            .setColumnIndex(0))
         .setRows(List(new RowData().setValues(headerValues)))
         .setFields("userEnteredValue")
 
       val updateRowsRequest = new UpdateCellsRequest()
-        .setStart(new GridCoordinate()
-          .setSheetId(sheetId)
-          .setRowIndex(1)
-          .setColumnIndex(0))
+        .setStart(
+          new GridCoordinate()
+            .setSheetId(sheetId)
+            .setRowIndex(1)
+            .setColumnIndex(0))
         .setRows(data.map(extractor))
         .setFields("userEnteredValue")
 
@@ -250,36 +293,64 @@ object SparkSpreadsheetService {
         new Request().setUpdateCells(updateRowsRequest)
       )
 
-      context.service.spreadsheets().batchUpdate(spreadsheet.getSpreadsheetId,
-        new BatchUpdateSpreadsheetRequest()
-          .setRequests(requests)).execute()
+      context.service
+        .spreadsheets()
+        .batchUpdate(spreadsheet.getSpreadsheetId,
+                     new BatchUpdateSpreadsheetRequest()
+                       .setRequests(requests))
+        .execute()
     }
 
     def rows: Seq[Map[String, String]] =
-      if(values.isEmpty) {
+      if (values.isEmpty) {
         Seq()
+      } else {
+        values.tail.map { row =>
+          headers.zip(row.map(_.toString)).toMap
+        }
       }
-      else {
-        values.tail.map { row => headers.zip(row.map(_.toString)).toMap }
-      }
+
+    def appendCells[T](schema: StructType,
+                       data: List[T],
+                       extractor: T => RowData): Unit = {
+      val sheetId = sheet.getProperties.getSheetId
+
+      val appendCellsRequest = new AppendCellsRequest()
+        .setSheetId(sheetId)
+        .setRows(data.map(extractor))
+        .setFields("userEnteredValue")
+
+      val requests = List(
+        new Request().setAppendCells(appendCellsRequest)
+      )
+
+      context.service
+        .spreadsheets()
+        .batchUpdate(spreadsheet.getSpreadsheetId,
+                     new BatchUpdateSpreadsheetRequest()
+                       .setRequests(requests))
+        .execute()
+    }
+
   }
 
   /**
-   * create new context of spareadsheets for spark
+    * create new context of spareadsheets for spark
     *
     *
-   * @param credential_json
-   * @return
-   */
+    * @param credential_json
+    * @return
+    */
   def apply(credential_json: String) = SparkSpreadsheetContext(credential_json)
 
   /**
-   * find a spreadsheet by name
+    * find a spreadsheet by name
     *
     * @param spreadsheetName
-   * @param context
-   * @return
-   */
-  def findSpreadsheet(spreadsheetName: String)(implicit context: SparkSpreadsheetContext): Option[SparkSpreadsheet] =
+    * @param context
+    * @return
+    */
+  def findSpreadsheet(spreadsheetName: String)(
+      implicit context: SparkSpreadsheetContext): Option[SparkSpreadsheet] =
     Some(context.findSpreadsheet(spreadsheetName))
 }
