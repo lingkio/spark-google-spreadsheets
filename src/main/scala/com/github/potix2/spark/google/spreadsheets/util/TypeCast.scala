@@ -19,10 +19,8 @@ object TypeCast {
     castType match {
       case _: ByteType => datum.toByte
       case _: ShortType => datum.toShort
-      case _: IntegerType => Try(datum.toInt)
-        .getOrElse(null)
-      case _: LongType => Try(datum.toLong)
-        .getOrElse(null)
+      case _: IntegerType => datum.toInt
+      case _: LongType => datum.toLong
       case _: FloatType => Try(datum.toFloat)
         .getOrElse(NumberFormat.getInstance(Locale.getDefault()).parse(datum).floatValue())
       case _: DoubleType => Try(datum.toFloat)
