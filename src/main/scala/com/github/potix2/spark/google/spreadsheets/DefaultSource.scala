@@ -59,8 +59,8 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
             write()
           }
           case SaveMode.Append => {
-            val worksheetRelation = SpreadsheetRelation(context, spreadsheetName, worksheetName, Some(data.schema))(sqlContext)
-            worksheet.updateCells(data.schema, worksheetRelation.buildScan().collect().toList ++ data.collect().toList, Util.toRowData)
+            //val worksheetRelation = SpreadsheetRelation(context, spreadsheetName, worksheetName, Some(data.schema))(sqlContext)
+            worksheet.appendCells(data.schema, data.collect().toList, Util.toRowData)
           }
           case SaveMode.Ignore => Unit
           case SaveMode.ErrorIfExists => throw new IllegalAccessException(s"Worksheet with name: $worksheetName already exists.")
@@ -76,12 +76,6 @@ class DefaultSource extends RelationProvider with SchemaRelationProvider with Cr
 
     SparkSpreadsheetService(client_json)
   }
-
-  /*private[spreadsheets] def createSpreadsheetContext(parameters: Map[String, String]) = {
-    val serviceAccountIdOption = parameters.get("serviceAccountId")
-    val credentialPath = parameters.getOrElse("credentialPath", DEFAULT_CREDENTIAL_PATH)
-    SparkSpreadsheetService(serviceAccountIdOption, new File(credentialPath))
-  }*/
 
   private[spreadsheets] def createRelation(sqlContext: SQLContext,
                                            context: SparkSpreadsheetService.SparkSpreadsheetContext,

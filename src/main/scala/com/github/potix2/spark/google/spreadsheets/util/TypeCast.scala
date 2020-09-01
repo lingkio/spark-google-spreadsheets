@@ -31,7 +31,6 @@ object TypeCast {
       case _: DateType => Date.valueOf(datum)
       case _: StringType => datum
       case _ => throw new RuntimeException(s"Unsupported type: ${castType.typeName}")
-
     }
   }
 }
